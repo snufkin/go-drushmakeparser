@@ -16,8 +16,15 @@ type DrushMakeInfo struct {
 type Package struct {
 	Name     string
 	Version  string
+	Download Download
+	Type     string
+	Patch    []string
+}
+
+type Download struct {
 	Type     string
 	Revision string
+	Branch   string
 }
 
 func (d *DrushMakeInfo) GetPackageByName(name string) Package {
@@ -65,11 +72,13 @@ func (d *DrushMakeInfo) Parse(filePath string) error {
 // Parse package information out of a single block of text.
 func (p *Package) Parse(block string) error {
 	var patterns = map[string]string{
-		"BASIC":    `^projects\[(\w+)\]\s?=\s?(\S+)$`,                         // projects[views] = 3.14
-		"VERSION":  `^projects\[(\w+)\]\[version\]\s?=\s?(\S+)$`,              // projects[nodequeue][version] = 2.0-alpha1
-		"BRANCH":   `^projects\[(\w+)\]\[download\]\[branch\]\s?=\s?(\S+)$`,   // projects[ns_core][download][branch] = 7.x-2.x
-		"TYPE":     `^projects\[(\w+)\]\[download\]\[type\]\s?=\s?(\S+)$`,     // projects[ns_core][download][type] = git
-		"REVISION": `^projects\[(\w+)\]\[download\]\[revision\]\s?=\s?(\S+)$`, // projects[draggableviews][download][revision] = 9677bc18b7255e13c33ac3cca48732b855c6817d
+		"BASIC":             `^projects\[(\w+)\]\s?=\s?(\S+)$`,                         // projects[views] = 3.14
+		"VERSION":           `^projects\[(\w+)\]\[version\]\s?=\s?(\S+)$`,              // projects[nodequeue][version] = 2.0-alpha1
+		"TYPE":              `^projects\[(\w+)\]\[type\]\s?=\s?(\S+)$`,                 // projects[ns_core][type] = module
+		"DOWNLOAD_BRANCH":   `^projects\[(\w+)\]\[download\]\[branch\]\s?=\s?(\S+)$`,   // projects[ns_core][download][branch] = 7.x-2.x
+		"DOWNLOAD_TYPE":     `^projects\[(\w+)\]\[download\]\[type\]\s?=\s?(\S+)$`,     // projects[ns_core][download][type] = git
+		"DOWNLOAD_REVISION": `^projects\[(\w+)\]\[download\]\[revision\]\s?=\s?(\S+)$`, // projects[draggableviews][download][revision] = 9677bc18b7255e13c33ac3cca48732b855c6817d
+		"PATCH":             `^projects\[(\w+)\]\[patch\]\[\]\s?=\s?"(\S+)"$`,          // projects[views][patch][] = "...."
 	}
 
 	p.Name = keyMapper(block)
@@ -91,12 +100,18 @@ func (p *Package) Parse(block string) error {
 
 				// Populate the right components within the struct.
 				switch rowType {
-				case "BASIC", "VERSION", "BRANCH":
+				case "BASIC", "VERSION":
 					p.Version = matches[2]
 				case "TYPE":
 					p.Type = matches[2]
-				case "REVISION":
-					p.Revision = matches[2]
+				case "DOWNLOAD_BRANCH":
+					p.Download.Branch = matches[2]
+				case "DOWNLOAD_TYPE":
+					p.Download.Type = matches[2]
+				case "DOWNLOAD_REVISION":
+					p.Download.Revision = matches[2]
+				case "PATCH":
+					p.Patch = append(p.Patch, matches[2])
 				}
 			}
 		}
